@@ -13,7 +13,10 @@ function createFolder(playilstID)
 {
     // create folder
     folderPath = "./" + playilstID;
-    fs.mkdirSync(folderPath);
+    if (!fs.existsSync(folderPath))
+    {
+        fs.mkdirSync(folderPath);
+    }
     return folderPath
 }
 function createOutputPath(folderPath, videoID)
