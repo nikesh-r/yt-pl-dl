@@ -7,11 +7,16 @@ const PLAYLIST_ID = "PLTBwOxolC2B3uRPWtXpNq8l71hsuRx8Zs"; // "PLzMsvNpDYBM7EjR8d
 const MAX_RESULT = 5; // Can be between 0 and 50 inclusive
 let videosIdList = [];
 
-function createOutputPath(playilstID, videoID)
+
+function createFolder(playilstID)
 {
-    // create folder
-    folderPath = "./" + playilstID;
-    fs.mkdirSync(folderPath);
+        // create folder
+        folderPath = "./" + playilstID;
+        fs.mkdirSync(folderPath);
+        return folderPath
+}
+function createOutputPath(folderPath, videoID)
+{
     // return filename
     return folderPath + "\\" + videoID + ".mkv";
 }
