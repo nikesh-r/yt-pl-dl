@@ -1,10 +1,20 @@
 const axios = require("axios");
+const fs = require("fs");
 require("dotenv").config();
 
 const MY_KEY = process.env.MY_YT_API_KEY;
 const PLAYLIST_ID = "PLTBwOxolC2B3uRPWtXpNq8l71hsuRx8Zs"; // "PLzMsvNpDYBM7EjR8dgqM_kYfj_MAUAxEA";
 const MAX_RESULT = 5; // Can be between 0 and 50 inclusive
 let videosIdList = [];
+
+function createOutputPath(playilstID, videoID)
+{
+    // create folder
+    folderPath = "./" + playilstID;
+    fs.mkdirSync(folderPath);
+    // return filename
+    return folderPath + "\\" + videoID + ".mkv";
+}
 
 const checkNextPage = async (npt) => {
   let NPT = npt;
