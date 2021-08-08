@@ -10,10 +10,10 @@ let videosIdList = [];
 
 function createFolder(playilstID)
 {
-        // create folder
-        folderPath = "./" + playilstID;
-        fs.mkdirSync(folderPath);
-        return folderPath
+    // create folder
+    folderPath = "./" + playilstID;
+    fs.mkdirSync(folderPath);
+    return folderPath
 }
 function createOutputPath(folderPath, videoID)
 {
