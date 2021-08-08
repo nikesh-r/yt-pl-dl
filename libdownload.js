@@ -14,7 +14,10 @@ function createDownloadLink(id)
 
 function download(url, outputPath)
 {
-    fs.unlinkSync(outputPath); // remove the file if it exists already
+    if (existsSync(outputPath))
+    {
+        fs.unlinkSync(outputPath); // remove the file if it exists already
+    }
     return new Promise((res, rej) => {
 
         // Get audio and video streams
