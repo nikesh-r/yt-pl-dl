@@ -1,29 +1,77 @@
 const axios = require("axios");
-const { create } = require("domain");
 const fs = require("fs");
 const libDownload = require("./libdownload");
 require("dotenv").config();
 
 const MY_KEY = process.env.MY_YT_API_KEY;
 
-const PLAYLIST_ID = "PLTBwOxolC2B1BODxYx4ZNBc0pWYKRu7RF"; // "PLzMsvNpDYBM7EjR8dgqM_kYfj_MAUAxEA";
-// const PLAYLIST_ID = "PLTBwOxolC2B3uRPWtXpNq8l71hsuRx8Zs"; // "PLzMsvNpDYBM7EjR8dgqM_kYfj_MAUAxEA";
-const MAX_RESULT = 5; // Can be between 0 and 50 inclusive
+let globalPlaylistID = "PLTBwOxolC2B1BODxYx4ZNBc0pWYKRu7RF"; 
+let globalOutputPath = "./";
+
+const MAX_RESULT = 50; // Can be between 0 and 50 inclusive
 let videoIDList = [];
 let videoTitleList = [];
-let PLAYLIST_NAME;
 
-function createFolder(playlistID) {
+function setGlobalVariables()
+{
+    for (let j = 0; j < process.argv.length; j++) {
+        console.log(j + ' -> ' + (process.argv[j]));
+    }
+    if (process.argv.length >= 2)
+    {
+        globalPlaylistID = process.argv[2];
+        console.log("set global playlist id to", globalPlaylistID)
+    }
+    if (process.argv.length >= 3)
+    {
+        globalOutputPath = process.argv[3] + "/";
+        console.log("set global output path to", globalOutputPath) 
+    }
+}
+
+async function convertPlaylistIDToTitle(playlistID)
+{
+    playlistTitle = "";
+
+    try {
+        const res = await axios.get(
+          `https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistID}&key=${MY_KEY}`
+        );
+        const data = await res.data;
+        if (data.items.length !== 0) {
+          playlistTitle = data.items[0].snippet.title;
+          return playlistTitle;
+        } else {
+          console.error("failed to resolve playlist id to title");
+          return playlistID;
+        }
+      } catch (err) {
+        console.error("failed to resolve playlist id to title");
+        console.log(err);
+        return playlistID;
+      }
+}
+
+async function createFolder(playlistID) {
   // create folder
-  let folderPath = "./" + playlistID;
+  playlistTitle = await convertPlaylistIDToTitle(playlistID);
+  let folderPath = globalOutputPath + playlistTitle;
   if (!fs.existsSync(folderPath)) {
     fs.mkdirSync(folderPath);
   }
   return folderPath;
 }
+
+function sanitizeOutputPath(outputPath)
+{
+  sanitizedPath = "";
+  sanitizedPath = outputPath.replace(/\|/g, "-");
+  return sanitizedPath;
+}
+
 function createOutputPath(folderPath, videoTitle) {
-  // return filename
-  return folderPath + "\\" + videoTitle + ".mkv";
+  outputPath = folderPath + "/" + videoTitle + ".mkv"; 
+  return sanitizeOutputPath(outputPath);
 }
 
 const initializeDB = (dbFilePath) => {
@@ -56,12 +104,12 @@ const storeVideoInDB = (dbFilePath, videoID) => {
   let playlistObject = {};
   for (let i = 0; i < playlistArray.length; i++) {
     playlistObject = playlistArray[i];
-    if (playlistObject.id === PLAYLIST_ID) {
+    if (playlistObject.id === globalPlaylistID) {
       playlistExist = true;
     }
   }
   if (playlistExist === false) {
-    playlistObject = initializePlaylist(playlistArray, PLAYLIST_ID);
+    playlistObject = initializePlaylist(playlistArray, globalPlaylistID);
   }
   let storedVideoList = playlistObject.videos;
 
@@ -77,7 +125,7 @@ const storeVideoInDB = (dbFilePath, videoID) => {
 const checkNextPage = async (npt) => {
   let NPT = npt;
   const res = await axios.get(
-    `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${PLAYLIST_ID}&maxResults=${MAX_RESULT}&pageToken=${NPT}&key=${MY_KEY}`
+    `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${globalPlaylistID}&maxResults=${MAX_RESULT}&pageToken=${NPT}&key=${MY_KEY}`
   );
   const data = await res.data;
   // console.log(data);
@@ -98,7 +146,7 @@ const saveVideos = async (data) => {
 const getDataFromApi = async () => {
   try {
     const res = await axios.get(
-      `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${PLAYLIST_ID}&maxResults=${MAX_RESULT}&key=${MY_KEY}`
+      `https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${globalPlaylistID}&maxResults=${MAX_RESULT}&key=${MY_KEY}`
     );
     const data = await res.data;
     // console.log(data);
@@ -122,14 +170,14 @@ const isVideoPresentInDb = (dbFilePath, videoID) => {
   let playlistArray = JSON.parse(dbContent);
   let playlistExist = false;
   let playlistObject = {};
-  playlistObject = playlistArray.find((element) => element.id === PLAYLIST_ID);
-  if (playlistObject === null) {
+  playlistObject = playlistArray.find((element) => element.id === globalPlaylistID);
+  if (!playlistObject) {
     console.log(
-      "playlist does not exist - isVideoPresentInDb: " + playlistObject
+      "playlist does not exist - isVideoPresentInDb: " + !!playlistObject
     );
     return false;
   }
-  // console.log(playlistArray[0][PLAYLIST_ID]);
+  // console.log(playlistArray[0][globalPlaylistID]);
   let storedVideoList = playlistObject.videos;
 
   const isVideoAlreadyPresent = storedVideoList.includes(videoID);
@@ -143,15 +191,17 @@ const isVideoPresentInDb = (dbFilePath, videoID) => {
 };
 
 const app = async () => {
+  setGlobalVariables();
   await getDataFromApi();
-  console.log(PLAYLIST_ID);
-  const folderPath = createFolder(PLAYLIST_ID);
+  console.log(globalPlaylistID);
+  const folderPath = await createFolder(globalPlaylistID);
   videoIDList.forEach((videoID) => {
     console.log("video id is", videoID);
     let isVideoPresent = isVideoPresentInDb("./config.json", videoID);
     if (isVideoPresent === false) {
       let index = videoIDList.findIndex((element) => element === videoID);
       videoTitle = videoTitleList[index];
+    //   videoTitle = videoID + " temp";
       const outputPath = createOutputPath(folderPath, videoTitle);
       libDownload.downloadVideo(videoID, outputPath).then((rc) => {
         console.log("download response: ", rc);
@@ -162,6 +212,8 @@ const app = async () => {
         } else {
           console.log("storevideo didnt run");
         }
+      }).catch((error) => {
+          console.error("error in downloading: ", error);
       });
     } else {
       console.log("isVideoPresent is true");

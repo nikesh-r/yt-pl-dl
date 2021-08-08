@@ -26,7 +26,7 @@ function download(url, outputPath) {
       [
         // Remove ffmpeg's console spamming
         "-loglevel",
-        "1",
+        "8", // increase to 40 for verbose
         "-hide_banner",
         // Set inputs
         "-i",
@@ -39,8 +39,8 @@ function download(url, outputPath) {
         "-map",
         "1:v",
         // Keep encoding
-        "-c:v",
-        "copy",
+        "-c:v", // codec option for video streams is set to copy
+        "copy", //
         // Define output file
         outputPath,
       ],
